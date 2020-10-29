@@ -6,7 +6,7 @@ Algorithm steps:
 
 -While exploring, currently acheivable score (using visited tiles only) and score with optimal path (assuming no walls on unvisited tiles)
 
--if optimal path score < currently acheivable score, stop exploring
+-if optimal path score < currently acheivable score, keep exploring else stop
 
 -goto start
 
