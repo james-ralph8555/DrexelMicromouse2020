@@ -4,7 +4,7 @@ Algorithm steps:
 
 -Explore unvisited tiles between start and goal
 
--While exploring, currently acheivable score (using visited tiles only) and score with optimal path (assuming no walls on unvisited tiles)
+-While exploring, calculate currently acheivable score (using visited tiles only) and score with optimal path (assuming no walls on unvisited tiles)
 
 -if optimal path score < currently acheivable score, keep exploring else stop
 
