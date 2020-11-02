@@ -29,8 +29,8 @@ def manhattan_distance_goto_start(a, b, maze_array):
 		return (abs(a[0]-b[0]) + abs(a[1] - b[1]))/2
 	else:
 		return abs(a[0]-b[0]) + abs(a[1] - b[1])
-		
-def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, h_func, state):
+	
+def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, h_func, state): #modified from code by Christian Careaga (MIT license)
 	for i in range(16):
 		for j in range(16):
 			API.clearText(i, j)
@@ -46,8 +46,6 @@ def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, 
 	while oheap:
 		current = heapq.heappop(oheap)[1]
 		if current == goal:
-			if current_x == 4 and current_y == 14:
-				log(came_from)
 			data = []
 			while current in came_from:
 				data.append(current)
@@ -77,7 +75,7 @@ def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, 
 			
 			if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
 				continue
-			
+			'''
 			t_path = []
 			t = current[:]
 			c = False
@@ -90,7 +88,7 @@ def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, 
 			
 			if c:
 				continue	
-			
+			'''
 			if tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1] for i in oheap]:
 				came_from[neighbor] = current
 				gscore[neighbor] = tentative_g_score
@@ -213,103 +211,91 @@ def set_degmode(desired, cur):
 		API.turnRight()
 		return desired
 
-def DFS(maze_array, start_x, start_y, visited):
-	v = visited.copy()
-	goal = (8,8)
-	stack = deque([([], (start_x,start_y))])
-	neighbors = [(0,1), (0,-1), (1, 0), (-1,0)]
-	MAZE_WIDTH = API.mazeWidth()
-	MAZE_HEIGHT = API.mazeHeight()
-	v.remove((start_x, start_y))
+def BFS(maze_array, start, goal, visited):
 	paths = []
-	while stack:
-		path, current = stack.pop()
-		if current ==  goal:
+	neighbors = [(0,1), (0,-1), (1, 0), (-1,0)]
+	q = deque()
+	path = [start]
+	q.append(path)
+	while q:
+		path = q[0]
+		q.popleft()
+		last = path[-1]
+		if last ==  goal:
 			paths.append(path)
-			continue
-		if (current[0],current[1]) in v:
-			continue
-		v.add((current[0],current[1]))
 		for i, j in neighbors:
-			neighbor = [current[0] + i, current[1] + j]
-			if 0 <= neighbor[0] < len(maze_array) and 0 <= neighbor[1] < len(maze_array[1]):
-					if neighbor in path:
-						continue
-					if i == 0 and j == 1 and not bool(4 & maze_array[neighbor[0]][neighbor[1]]):
-						stack.append((path + [neighbor], (neighbor[0], neighbor[1])))
-						continue
-					if i == 0 and j == -1 and not bool(1 & maze_array[neighbor[0]][neighbor[1]]):
-						stack.append((path + [neighbor], (neighbor[0], neighbor[1])))
-						continue
-					if i == 1 and j == 0 and not bool(8 & maze_array[neighbor[0]][neighbor[1]]):
-						stack.append((path + [neighbor], (neighbor[0], neighbor[1])))
-						continue
-					if i == -1 and j == 0 and not bool(2 & maze_array[neighbor[0]][neighbor[1]]):
-						stack.append((path + [neighbor], (neighbor[0], neighbor[1])))
-						continue
-			else:
-				continue
-	log(len(paths))
-	leastdist = sys.maxsize
-	leasti = -1
-	for i, p in enumerate(paths):
-		if len(p) < leastdist:
-			leastdist = len(p)
-			leasti = i
-	if leasti == -1:
-		return False
-	elif len(paths[leasti]) == 1:
-		if path[leasti][0] == goal[0] and path[leasti][1] == goal[1]:
-			return path[leasti]
-		else:
-			return False
-	else:
-		log(leasti)
-		log(paths[leasti] == paths[0])
-		log(paths[leasti])
-		return paths[leasti]
+			neighbor = (last[0] + i, last[1] + j)
+			if 0 <= neighbor[0] < len(maze_array) and 0 <= neighbor[1] < len(maze_array[1]) and last not in path[1:-1]:
+					if i == 0 and j == 1 and not bool(4 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
+						q.append(path + [neighbor])
+					if i == 0 and j == -1 and not bool(1 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
+						q.append(path + [neighbor])
+					if i == 1 and j == 0 and not bool(8 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
+						q.append(path + [neighbor])
+					if i == -1 and j == 0 and not bool(2 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
+						q.append(path + [neighbor])
+	return paths
 
-def move_to(current_x, current_y, move_to_x, move_to_y, degmode):
-	args = ["moveForward"]
-	response = ''
-	if move_to_x == current_x and move_to_y == current_y + 1:
+def move_to(current_x, current_y, degmode, path, maze_array, visited):
+	dist = 1
+	if path[0][0] == current_x and path[0][1] == current_y + 1:
 		degmode = set_degmode(0, degmode)
+		for i, n in enumerate(path[1:len(path)]):
+			if n[0] == current_x and n[1] == current_y + 2 + i and visited[n[0]][n[1]] and not bool(4 & maze_array[n[0]][n[1]]):
+				dist = 1
+			else:
+				break
 		if not API.wallFront():
 			try:
-				API.moveForward()
+				log(dist)
+				API.moveForward(dist)
 			except MouseCrashedError as e:
 				log(e)
-				return current_x, current_y, degmode
-			current_y += 1
-	if move_to_x == current_x + 1 and move_to_y == current_y:
+			return current_x, current_y + dist, degmode
+	if path[0][0] == current_x + 1 and path[0][1] == current_y:
 		degmode = set_degmode(1, degmode)
+		for i, n in enumerate(path[1:len(path)]):
+			if n[0] == current_x + 2 + i and n[1] == current_y and visited[n[0]][n[1]] and not bool(8 & maze_array[n[0]][n[1]]):
+				dist = 1
+			else:
+				break
 		if not API.wallFront():
 			try:
-				API.moveForward()
+				log(dist)
+				API.moveForward(dist)
 			except MouseCrashedError as e:
 				log(e)
-				return current_x, current_y, degmode
-			current_x += 1
-	if move_to_x == current_x and move_to_y == current_y - 1:
+			return current_x + dist, current_y, degmode
+	if path[0][0] == current_x and path[0][1] == current_y - 1:
 		degmode = set_degmode(2, degmode)
+		for i, n in enumerate(path[1:len(path)]):
+			if n[0] == current_x and n[1] == current_y - 2 - i and visited[n[0]][n[1]] and not bool(1 & maze_array[n[0]][n[1]]):
+				dist = 1
+			else:
+				break
 		if not API.wallFront():
 			try:
-				API.moveForward()
+				log(dist)
+				API.moveForward(dist)
 			except MouseCrashedError as e:
 				log(e)
-				return current_x, current_y, degmode
-			current_y -= 1
-	if move_to_x == current_x - 1 and move_to_y == current_y:
+			return current_x, current_y - dist, degmode
+	if path[0][0] == current_x - 1 and path[0][1] == current_y:
 		degmode = set_degmode(3, degmode)
+		for i, n in enumerate(path[1:len(path)]):
+			if n[0] == current_x - 2 - i and n[1] == current_y and visited[n[0]][n[1]] and not bool(2 & maze_array[n[0]][n[1]]):
+				dist = 1
+			else:
+				break
 		if not API.wallFront():
 			try:
-				API.moveForward()
+				log(dist)
+				API.moveForward(dist)
 			except MouseCrashedError as e:
 				log(e)
-				return current_x, current_y, degmode
-			current_x -= 1
-	return current_x, current_y, degmode
-	
+			return current_x - dist, current_y, degmode
+
+#spiral generating utility - speeds up closest_unexplored_to_goal - by roippi 	
 def move_right(x,y):
 	return x+1, y
 def move_down(x,y):
@@ -337,6 +323,7 @@ def gen_points(end):
 				n+=1
 				yield n,pos
 		times_to_move+=1
+#end spiral generating utility
 
 def closest_unexplored_to_goal(maze_array, visited, current_x, current_y, spiral, reached_goal): 
 	if reached_goal:
@@ -401,8 +388,8 @@ def main():
 	MAZE_WIDTH = API.mazeWidth()
 	MAZE_HEIGHT = API.mazeHeight()
 	maze_array = [[0 for j in range(MAZE_HEIGHT)] for i in range(MAZE_WIDTH)]
+	visited = [[False for j in range(MAZE_HEIGHT)] for i in range(MAZE_WIDTH)]
 	intersections = deque([])
-	visited = {(0,0)}
 	FINISH_X = 8
 	FINISH_Y = 8
 	START_X = 0
@@ -419,14 +406,30 @@ def main():
 		if state == 0:
 			if current_x == FINISH_X and current_y == FINISH_Y:
 				reached_goal = True
+			if reached_goal and current_x == START_X and current_y == START_Y:
+				paths = BFS(maze_array, (current_x, current_y), (8, 8), visited)
+				best_path = []
+				best_score = sys.maxsize
+				for p in paths:
+					if path_score(p) < best_score:
+						best_path = p
+				for n in best_path:
+					API.setColor(n[0],n[1],'B')
 			log('Mapping')
 			maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
 			#path = DFS(maze_array, current_x, current_y, visited)
-			goto_x, goto_y = closest_unexplored_to_goal(maze_array, visited, current_x, current_y, spiral, reached_goal)
+			if reached_goal:
+				#goto_x, goto_y = closest_unexplored_to_goal(maze_array, visited, current_x, current_y, spiral, reached_goal)
+				goto_x = 0
+				goto_y = 0
+			else:
+				goto_x = 8
+				goto_y = 8
 			log('going to ' + str(goto_x) + ' ' + str(goto_y))
 			while current_x != goto_x or current_y != goto_y:
 				maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
-				path = aStar(maze_array, current_x, current_y, goto_x, goto_y, manhattan_distance, state)
+				path = aStar(maze_array, current_x, current_y, goto_x, goto_y, manhattan_distance_explore, state)
+				log(path)
 				if path:
 					if len(path) > len(old_path):
 						for p in old_path:
@@ -437,8 +440,8 @@ def main():
 							API.setColor(p[0], p[1], 'k')
 					for p in path:
 						API.setColor(p[0], p[1], 'B')
-					current_x, current_y, degmode = move_to(current_x, current_y, path[0][0], path[0][1], degmode)
-					visited.add((current_x,current_y))	
+					current_x, current_y, degmode = move_to(current_x, current_y, degmode, path, maze_array, visited)
+					visited[current_x][current_y] = True	
 					old_path = path
 				else:
 					log('err')
