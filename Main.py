@@ -1,36 +1,30 @@
 import API
 import sys
-from typing import Type
 import heapq
 from collections import deque
 from math import sqrt
+from time import sleep
 
 def log(s):
 	sys.stderr.write('{}\n'.format(s))
 	sys.stderr.flush()
 
-def manhattan_distance(a, b, maze_array):
+def manhattan_distance(a, b, visited):
 	return abs(a[0]-b[0]) + abs(a[1] - b[1])
 	
-def manhattan_distance_explore(a, b, maze_array):
-	if maze_array[b[0]][b[1]] != 0:
+def manhattan_distance_explore(a, b, visited):
+	if visited[b[0]][b[1]]:
 		return (abs(a[0]-b[0]) + abs(a[1] - b[1]))**2
 	else:
 		return abs(a[0]-b[0]) + abs(a[1] - b[1])
-		
-def manhattan_distance_gotoint(a, b, maze_array):
-	if maze_array[b[0]][b[1]] == 0:
-		return sys.maxsize
-	else:
-		return (abs(a[0]-b[0]) + abs(a[1] - b[1]))
-		
-def manhattan_distance_goto_start(a, b, maze_array):
-	if maze_array[b[0]][b[1]] == 0:
-		return (abs(a[0]-b[0]) + abs(a[1] - b[1]))/2
-	else:
+
+def manhattan_distance_visited(a, b, visited):
+	if visited[b[0]][b[1]]:
 		return abs(a[0]-b[0]) + abs(a[1] - b[1])
+	else:
+		return sys.maxsize
 	
-def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, h_func, state): #modified from code by Christian Careaga (MIT license)
+def aStar(maze_array, current_x, current_y, goal_x, goal_y, h_func, state, visited): #modified from code by Christian Careaga (MIT license)
 	for i in range(16):
 		for j in range(16):
 			API.clearText(i, j)
@@ -40,7 +34,7 @@ def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, 
 	close_set = set()
 	came_from = {}
 	gscore = {start:0}
-	fscore = {start:h_func(start,goal, maze_array)}
+	fscore = {start:h_func(start,goal, visited)}
 	oheap = []
 	heapq.heappush(oheap, (fscore[start], start))
 	while oheap:
@@ -71,47 +65,21 @@ def aStar(maze_array, current_x: int, current_y: int, goal_x: int, goal_y: int, 
 			else:
 				continue
 			
-			tentative_g_score = gscore[current] + h_func(current, neighbor, maze_array)
+			tentative_g_score = gscore[current] + h_func(current, neighbor, visited)
 			
 			if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
 				continue
-			'''
-			t_path = []
-			t = current[:]
-			c = False
-			while t in came_from:
-				if came_from[t] in t_path:
-					c = True
-					break
-				t_path.append(t)
-				t = came_from[t]
-			
-			if c:
-				continue	
-			'''
+
 			if tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1] for i in oheap]:
 				came_from[neighbor] = current
 				gscore[neighbor] = tentative_g_score
-				fscore[neighbor] = tentative_g_score + h_func(neighbor, goal, maze_array)
-				if state == 3 and fscore[neighbor] > sys.maxsize:
+				fscore[neighbor] = tentative_g_score + h_func(neighbor, goal, visited)
+				if state == 3 and fscore[neighbor] >= sys.maxsize:
 					return False
 				API.setText(neighbor[0],neighbor[1],str(fscore[neighbor]))
 				
 				heapq.heappush(oheap, (fscore[neighbor], neighbor))
 	return False
-
-"""
-def concat_int(a,b):
-	if a == 5:
-		inp = [str(b)]
-	if b == 5:
-		inp = [str(a)]
-	inp = [str(a), str(b)]
-	l = [list(w) for w in inp]
-	sl = []
-	[sl.extend(s) for s in l]
-	return int(''.join(sorted(list(set(sl)))))
-"""
 	
 def concat_bin(a,b):
 	if a == 16:
@@ -197,21 +165,21 @@ def mapping(maze_array, x, y, degmode, intersections):
 		
 	return maze_array, intersections
 
-def set_degmode(desired, cur):
+def set_degmode(desired, cur, score):
 	if desired == cur:
-		return cur
+		return cur, score
 	if desired == (cur+1)%4:
 		API.turnRight()
-		return desired
+		return desired, (score + 1)
 	elif desired == (cur-1)%4:
 		API.turnLeft()
-		return desired
+		return desired, (score + 1)
 	else:
 		API.turnRight()
 		API.turnRight()
-		return desired
+		return desired, (score + 2)
 
-def BFS(maze_array, start, goal, visited):
+def BFS(maze_array, start, goal, visited, allow_unvisited):
 	paths = []
 	neighbors = [(0,1), (0,-1), (1, 0), (-1,0)]
 	q = deque()
@@ -226,131 +194,105 @@ def BFS(maze_array, start, goal, visited):
 		for i, j in neighbors:
 			neighbor = (last[0] + i, last[1] + j)
 			if 0 <= neighbor[0] < len(maze_array) and 0 <= neighbor[1] < len(maze_array[1]) and last not in path[1:-1]:
-					if i == 0 and j == 1 and not bool(4 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
-						q.append(path + [neighbor])
-					if i == 0 and j == -1 and not bool(1 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
-						q.append(path + [neighbor])
-					if i == 1 and j == 0 and not bool(8 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
-						q.append(path + [neighbor])
-					if i == -1 and j == 0 and not bool(2 & maze_array[neighbor[0]][neighbor[1]]) and visited[neighbor[0]][neighbor[1]]:
-						q.append(path + [neighbor])
-	return paths
+					if i == 0 and j == 1 and not bool(4 & maze_array[neighbor[0]][neighbor[1]]):
+						if (allow_unvisited) or visited[neighbor[0]][neighbor[1]]:
+							q.append(path + [neighbor])
+					if i == 0 and j == -1 and not bool(1 & maze_array[neighbor[0]][neighbor[1]]):
+						if (allow_unvisited) or visited[neighbor[0]][neighbor[1]]:
+							q.append(path + [neighbor])
+					if i == 1 and j == 0 and not bool(8 & maze_array[neighbor[0]][neighbor[1]]):
+						if (allow_unvisited) or visited[neighbor[0]][neighbor[1]]:
+							q.append(path + [neighbor])
+					if i == -1 and j == 0 and not bool(2 & maze_array[neighbor[0]][neighbor[1]]):
+						if (allow_unvisited) or visited[neighbor[0]][neighbor[1]]:
+							q.append(path + [neighbor])
+	best_path = []
+	best_score = sys.maxsize
+	best_score_path = []
+	for p in paths:
+		cur_score, score_path = path_score(p)
+		last_path = p
+		if cur_score < best_score:
+			best_path = p
+			best_score = cur_score
+			best_score_path = score_path
+	return best_path, best_score_path, best_score
 
-def move_to(current_x, current_y, degmode, path, maze_array, visited):
+def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
 	dist = 1
 	if path[0][0] == current_x and path[0][1] == current_y + 1:
-		degmode = set_degmode(0, degmode)
+		degmode, score = set_degmode(0, degmode, score)
 		for i, n in enumerate(path[1:len(path)]):
 			if n[0] == current_x and n[1] == current_y + 2 + i and visited[n[0]][n[1]] and not bool(4 & maze_array[n[0]][n[1]]):
-				dist = 1
+				dist += 1
 			else:
 				break
 		if not API.wallFront():
 			try:
-				log(dist)
+				if dist <= 2:
+					score += dist
+				else:
+					score += 2 + (dist-2)/2
 				API.moveForward(dist)
-			except MouseCrashedError as e:
+			except API.MouseCrashedError as e:
 				log(e)
-			return current_x, current_y + dist, degmode
+			return current_x, current_y + dist, degmode, score
 	if path[0][0] == current_x + 1 and path[0][1] == current_y:
-		degmode = set_degmode(1, degmode)
+		degmode, score = set_degmode(1, degmode, score)
 		for i, n in enumerate(path[1:len(path)]):
 			if n[0] == current_x + 2 + i and n[1] == current_y and visited[n[0]][n[1]] and not bool(8 & maze_array[n[0]][n[1]]):
-				dist = 1
+				dist += 1
 			else:
 				break
 		if not API.wallFront():
 			try:
-				log(dist)
+				if dist <= 2:
+					score += dist
+				else:
+					score += 2 + (dist-2)/2
 				API.moveForward(dist)
-			except MouseCrashedError as e:
+			except API.MouseCrashedError as e:
 				log(e)
-			return current_x + dist, current_y, degmode
+			return current_x + dist, current_y, degmode, score
 	if path[0][0] == current_x and path[0][1] == current_y - 1:
-		degmode = set_degmode(2, degmode)
+		degmode, score = set_degmode(2, degmode, score)
 		for i, n in enumerate(path[1:len(path)]):
 			if n[0] == current_x and n[1] == current_y - 2 - i and visited[n[0]][n[1]] and not bool(1 & maze_array[n[0]][n[1]]):
-				dist = 1
+				dist += 1
 			else:
 				break
 		if not API.wallFront():
 			try:
-				log(dist)
+				if dist <= 2:
+					score += dist
+				else:
+					score += 2 + (dist-2)/2
 				API.moveForward(dist)
-			except MouseCrashedError as e:
+			except API.MouseCrashedError as e:
 				log(e)
-			return current_x, current_y - dist, degmode
+			return current_x, current_y - dist, degmode, score
 	if path[0][0] == current_x - 1 and path[0][1] == current_y:
-		degmode = set_degmode(3, degmode)
+		degmode, score = set_degmode(3, degmode, score)
 		for i, n in enumerate(path[1:len(path)]):
 			if n[0] == current_x - 2 - i and n[1] == current_y and visited[n[0]][n[1]] and not bool(2 & maze_array[n[0]][n[1]]):
-				dist = 1
+				dist += 1
 			else:
 				break
 		if not API.wallFront():
 			try:
-				log(dist)
+				if dist <= 2:
+					score += dist
+				else:
+					score += 2 + (dist-2)/2
 				API.moveForward(dist)
-			except MouseCrashedError as e:
+			except API.MouseCrashedError as e:
 				log(e)
-			return current_x - dist, current_y, degmode
+			return current_x - dist, current_y, degmode, score
 
-#spiral generating utility - speeds up closest_unexplored_to_goal - by roippi 	
-def move_right(x,y):
-	return x+1, y
-def move_down(x,y):
-	return x,y-1
-def move_left(x,y):
-	return x-1,y
-def move_up(x,y):
-	return x,y+1
-def gen_points(end):
-	from itertools import cycle
-	_moves = cycle([move_right, move_down, move_left, move_up])
-	n=0
-	pos = 8,8
-	times_to_move = 1
-	
-	yield n, pos
-	
-	while True:
-		for _ in range(2):
-			move = next(_moves)
-			for _ in range(times_to_move):
-				if n>=end:
-					return
-				pos = move(*pos)
-				n+=1
-				yield n,pos
-		times_to_move+=1
-#end spiral generating utility
-
-def closest_unexplored_to_goal(maze_array, visited, current_x, current_y, spiral, reached_goal): 
-	if reached_goal:
-		goal_x = 0
-		goal_y = 0
-	else:
-		goal_x = 8
-		goal_y = 8
-	MAZE_WIDTH = API.mazeWidth()
-	MAZE_HEIGHT = API.mazeHeight()
-	closest = (-1, -1)
-	closestdist = sys.maxsize
-	shortestpath = sys.maxsize
-	for i, coords in spiral:
-		n, m = coords
-		if 0 <= n < 16 and 0 <= m <= 16:
-			if (n,m) not in visited:
-				d = manhattan_distance((current_x,current_y), (n,m), 0) + manhattan_distance((n,m), (goal_x,goal_x), 0)
-				if d <= closestdist:
-					closestdist = d
-					pl = len(aStar(maze_array, current_x, current_y, n, m, manhattan_distance_explore, 0))+len(aStar(maze_array, n, m, goal_x, goal_y, manhattan_distance_explore, 0))
-					if pl < shortestpath:
-						shortestpath = pl
-						closest = (n,m)
-	return closest[0], closest[1]
 	
 def path_score(path):
+	score_path = []
+	
 	cur_x = path[0][0]
 	last_x = path[0][0]
 	last_x2 = -1
@@ -376,20 +318,117 @@ def path_score(path):
 		last_y2 = last_y
 		last_x = cur_x
 		last_y = cur_y
-	return score
+		score_path.append(score)
+	return score, score_path
 
-def current_score(path, total_effective_distance, total_turns):
-	pscore = path_score(path)
-	return pscore + 0.1*(pscore + total_effective_distance, total_turns)
-	
+def detect_shortcut_start_to_goal(maze_array, start_x, start_y, goal_x, goal_y, current_x, current_y, visited, checked_pairs, intersections):
+	m = (current_x, current_y)
+	current_path = [(start_x, start_y)] + aStar(maze_array, start_x, start_y, m[0], m[1], manhattan_distance_visited, 0, visited)
+	for i, n in enumerate(current_path[len(current_path):0:-1]):
+		if n in intersections and not(m in [(n[0] + k, n[1] + l) for k,l in [(0,1), (0,-1), (1, 0), (-1,0)]]) and (n, m) not in checked_pairs and n!=m:
+			shortcut_path = [n] + aStar(maze_array, n[0], n[1], m[0], m[1], manhattan_distance, 0, visited)
+			ps_shortcut = path_score(shortcut_path)
+			ps_current = path_score(current_path[current_path.index(n):current_path.index(n)+current_path.index(m)])
+			checked_pairs.append((n,m))
+			if ps_shortcut[0] < ps_current[0] and len(shortcut_path) <= len(current_path):
+				log('shortcut detected between ' + str((n,m)))
+				log('shortcut path: ' + str(shortcut_path))
+				log('shortcut path score: ' + str(ps_shortcut[0]))
+				log('current path: ' + str(current_path[current_path.index(n):current_path.index(n)+current_path.index(m)]))
+				log('current path score: ' + str(ps_current[0]))
+				return shortcut_path, checked_pairs
+	return [], checked_pairs
+
+def detect_shortcut_goal_to_start(maze_array, start_x, start_y, goal_x, goal_y, current_x, current_y, visited, checked_pairs, intersections):
+	m = (current_x, current_y)
+	current_path = [(start_x, start_y)] + aStar(maze_array, start_x, start_y, goal_x, goal_y, manhattan_distance_visited, 0, visited)
+	shortcut_path = [(start_x, start_y)] + aStar(maze_array, start_x, start_y, goal_x, goal_y, manhattan_distance, 0, visited)
+	ps_shortcut = path_score(shortcut_path)
+	ps_current = path_score(current_path)
+	if len(aStar(maze_array, current_x, current_y, shortcut_path[0][0], shortcut_path[0][1], manhattan_distance, 0, visited)) > len(aStar(maze_array, current_x, current_y, shortcut_path[-1][0], shortcut_path[-1][1], manhattan_distance, 0, visited)):
+		far_end = 0
+	else:
+		far_end = -1
+	if ps_shortcut[0] < ps_current[0] and is_shortcut_economic(maze_array, visited, current_x, current_y, ps_shortcut, ps_current, shortcut_path, 1, far_end):
+		log('shortcut detected between start and goal')
+		log('shortcut path: ' + str(shortcut_path))
+		log('shortcut path score: ' + str(ps_shortcut[0]))
+		log('current path: ' + str(current_path))
+		log('current path score: ' + str(ps_current[0]))
+		return shortcut_path, checked_pairs
+	return [], checked_pairs
+
+def is_shortcut(maze_array, n, m, visited, current_x, current_y):
+	current_path = [n] + aStar(maze_array, n[0], n[1], m[0], m[1], manhattan_distance_visited, 0, visited)
+	shortcut_path = [n] + aStar(maze_array, n[0], n[1], m[0], m[1], manhattan_distance, 0, visited)
+	ps_shortcut = path_score(shortcut_path)
+	ps_current = path_score(current_path)
+	if len(aStar(maze_array, current_x, current_y, shortcut_path[0][0], shortcut_path[0][1], manhattan_distance, 0, visited)) > len(aStar(maze_array, current_x, current_y, shortcut_path[-1][0], shortcut_path[-1][1], manhattan_distance, 0, visited)):
+		far_end = 0
+	else:
+		far_end = -1
+	if ps_shortcut[0] < ps_current[0] and is_shortcut_economic(maze_array, visited, current_x, current_y, ps_shortcut, ps_current, shortcut_path, 1.5, far_end):
+		return True
+	else:
+		return False
+		
+def is_shortcut_economic(maze_array, visited, current_x, current_y, ps_shortcut, ps_current, shortcut_path, allowance, far_end):
+	shortcut_path_unvisited = []
+	for n in shortcut_path:
+		if not visited[n[0]][n[1]]:
+			shortcut_path_unvisited.append(n)
+	estpath = [(current_x, current_y)] + aStar(maze_array, current_x, current_y, shortcut_path_unvisited[far_end][0], shortcut_path_unvisited[far_end][1], manhattan_distance, 0, visited)
+	estcost = path_score(estpath)
+	log('estimated shortcut path savings ' + str(ps_current[0] - ps_shortcut[0]))
+	log('estimated cost to explore shortcut ' + str(estcost[0]))
+	if estcost[0] < (ps_current[0] - ps_shortcut[0])*allowance:
+		return True
+	else:
+		return False
+def update_viable(visited, maze_array):
+	viable = [row[:] for row in visited]
+	for i in range(len(viable)):
+		for j in range(len(viable)):
+				
+			l = False
+			r = False
+			u = False
+			d = False
+			if i == 0:
+				l = True
+				if visited[i+1][j]:
+					r = True
+			elif i == 15:
+				r = True
+				if visited[i-1][j]:
+					l = True
+			else:
+				if visited[i+1][j] and visited[i-1][j]:
+					l = True
+					r = True
+			if j == 0:
+				d = True
+				if visited[i][j+1]:
+					u = True
+			elif j == 15:
+				u = True
+				if visited[i][j-1]:
+					d = True
+			else:
+				if visited[i][j+1] and visited[i][j-1]:
+					u = True
+					d = True
+			if l and r and u and d:
+				viable[i][j] = True
+	return viable
 def main():
 	log('Running')
-	spiral = list(gen_points(256))
 	MAZE_WIDTH = API.mazeWidth()
 	MAZE_HEIGHT = API.mazeHeight()
 	maze_array = [[0 for j in range(MAZE_HEIGHT)] for i in range(MAZE_WIDTH)]
 	visited = [[False for j in range(MAZE_HEIGHT)] for i in range(MAZE_WIDTH)]
-	intersections = deque([])
+	viable = [row[:] for row in visited]
+	intersections = []
 	FINISH_X = 8
 	FINISH_Y = 8
 	START_X = 0
@@ -399,139 +438,151 @@ def main():
 	oldpath = []
 	old_path = []
 	degmode = 0
-	reached_goal = False
 	state = 0 #0 - mapping, 1 - return to start, 2 - goto goal
+	visited[START_X][START_Y] = True
+	got_best_score = False
+	total_score = 0
+	best_run_score = 0
+	final_score = 0
+	checked_pairs = []
+	shortcut_queue = []
+	shortcut_order = 0
 	while True:
-		log(state)
-		if state == 0:
-			if current_x == FINISH_X and current_y == FINISH_Y:
-				reached_goal = True
-			if reached_goal and current_x == START_X and current_y == START_Y:
-				paths = BFS(maze_array, (current_x, current_y), (8, 8), visited)
-				best_path = []
-				best_score = sys.maxsize
-				for p in paths:
-					if path_score(p) < best_score:
-						best_path = p
-				for n in best_path:
-					API.setColor(n[0],n[1],'B')
-			log('Mapping')
-			maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
-			#path = DFS(maze_array, current_x, current_y, visited)
-			if reached_goal:
-				#goto_x, goto_y = closest_unexplored_to_goal(maze_array, visited, current_x, current_y, spiral, reached_goal)
-				goto_x = 0
-				goto_y = 0
-			else:
-				goto_x = 8
-				goto_y = 8
-			log('going to ' + str(goto_x) + ' ' + str(goto_y))
-			while current_x != goto_x or current_y != goto_y:
+		log('State: ' + str(state))
+		if 7 <= current_x <= 8 and 7 <= current_y <= 8: 
+			if state == 0:
+				state = 1
+				log('Changing state to 1: goal to start')
+				FINISH_X = current_x
+				FINISH_Y = current_y
+			if state == 2:
+				final_score = total_score * 0.1 + best_run_score
+				log('Best Run Turns + Effective Distance : ' + str(best_run_score))
+				log('Total Turns + Effective Distance: ' + str(total_score))
+				log('Final Weighted Score: ' + str(final_score))
+				exit()
+		elif any(visited[7:9][7:9]) and state == 0:
+			state = 1
+			log('Changing state to 1: goal to start')
+		if state == 1 and current_x == START_X and current_y == START_Y:
+			state = 2
+			log('Changing state to 2: final run')
+		maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
+		if state == 0 or state == 2:
+			goto_x = FINISH_X
+			goto_y = FINISH_Y
+		elif state == 1:
+			goto_x = START_X
+			goto_y = START_Y
+		while (current_x != goto_x or current_y != goto_y) and (state != 3):
+			if state == 0 or state == 1:
+				shortcut_path = []
 				maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
-				path = aStar(maze_array, current_x, current_y, goto_x, goto_y, manhattan_distance_explore, state)
-				log(path)
-				if path:
-					if len(path) > len(old_path):
-						for p in old_path:
-							API.setColor(p[0], p[1], 'k')
-						old_path = path
+				''' uncomment to enable shortcut finding - not reccomended
+				if (current_x, current_y) in intersections:	
+					if state == 0 and goto_x == FINISH_X and goto_y == FINISH_Y:
+						shortcut_path, checked_pairs = detect_shortcut_start_to_goal(maze_array, START_X, START_Y, FINISH_X, FINISH_Y, current_x, current_y, visited, checked_pairs, intersections)
+					if state == 1 and goto_x == START_X and goto_y == START_Y: 
+						shortcut_path, checked_pairs = detect_shortcut_goal_to_start(maze_array, START_X, START_Y, FINISH_X, FINISH_Y, current_x, current_y, visited, checked_pairs, intersections)
+					if shortcut_path:
+						prev_loc = (current_x, current_y)
+						prevstate = state
+						not_sc = False
+						state = 3
+						sc_start = shortcut_path[0]
+						sc_end = shortcut_path[-1]
+						shortcut_path.reverse()
+						log('Changing state to 3: Explore Shortcuts')
 						break
-					for p in old_path:
-							API.setColor(p[0], p[1], 'k')
-					for p in path:
-						API.setColor(p[0], p[1], 'B')
-					current_x, current_y, degmode = move_to(current_x, current_y, degmode, path, maze_array, visited)
-					visited[current_x][current_y] = True	
-					old_path = path
-				else:
-					log('err')
-			"""
-			if path == False:
-				state = 3
-			else:
-				if path:
-					for p in old_path:
-						API.setColor(p[0], p[1], 'k')
-					for p in path:
-						API.setColor(p[0], p[1], 'B')
-					current_x, current_y, degmode = move_to(current_x, current_y, path[0][0], path[0][1], degmode)
-					visited.add((current_x,current_y))
-					old_path = path
-			if not any(0 in row for row in maze_array):
-				state = 1
-			"""
-				
-			
-		if state == 1:
-			log('Returning to start')
-			maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
-			log(maze_array[current_x][current_y])
-			path = aStar(maze_array, current_x, current_y, START_X, START_Y, manhattan_distance_goto_start, state)
-			log(path)
+				'''
+						
+				if state != 3:
+					path = aStar(maze_array, current_x, current_y, goto_x, goto_y, manhattan_distance_explore, state, visited)
+			elif state == 2:				
+				path, best_score_path, best_score = BFS(maze_array, (current_x, current_y), (FINISH_X, FINISH_Y), viable, False)
+				for i,n in enumerate(path[1:len(path)]):
+					API.setText(n[0], n[1], best_score_path[i])
+					API.setColor(n[0],n[1],'B')
+				if not got_best_score:
+					got_best_score = True
+					best_run_score = best_score
 			if path:
+				if (current_x, current_y) in path:
+					path.remove((current_x, current_y))
 				for p in old_path:
 					API.setColor(p[0], p[1], 'k')
-				for p in path:
+					if state == 2:
+						API.clearText(p[0], p[1])
+				for i, p in enumerate(path):
 					API.setColor(p[0], p[1], 'B')
-				current_x, current_y, degmode = move_to(current_x, current_y, path[0][0], path[0][1], degmode)
+					if state == 2:
+						API.setText(p[0], p[1], best_score_path[i])
+				current_x, current_y, degmode, total_score = move_to(current_x, current_y, degmode, path, maze_array, viable, total_score)
+				visited[current_x][current_y] = True
+				viable = update_viable(visited, maze_array)	
+				for i in range(len(visited)):
+					for j in range(len(visited)):
+						if visited[i][j]:
+							API.setColor(i,j,'R')
+						elif viable[i][j]:
+							API.setColor(i,j,'G')
 				old_path = path
-			elif current_x == START_X and current_y == START_Y:
-				log('Returned to start')
-				state = 2
+				if 7 <= current_x <= 8 and 7 <= current_y <= 8: 
+					break
 			else:
-				printArr = list(map(list, maze_array))
-				for n in path:
-					printArr[n[0]][n[1]] = str(printArr[n[0]][n[1]])+'+'
-				printArr[current_x][current_y] = str(printArr[current_x][current_y]) + '-'
-				for i in range(16):
-					for j in range(16):
-						sys.stderr.write(str(printArr[i][j]) + ' ')
-					sys.stderr.write('\n')
-				
-		if state == 2:
-			log('Going to goal')
-			path = aStar(maze_array, current_x, current_y, FINISH_X, FINISH_Y, manhattan_distance, state)
-			if path:
-				for p in old_path:
-					API.setColor(p[0], p[1], 'k')
-				log(path)
-				move_to_x = path[0][0]
-				move_to_y = path[0][1]
-				for p in path:
-					API.setColor(p[0], p[1], 'B')
-				old_path = path
-			else:
-				log('Found end')
-				state = 1
-		"""
+				log('err')
 		if state == 3:
-			log('Returning to last intersection')
-			goto = intersections.pop()
-			path = aStar(maze_array, current_x, current_y, goto[0], goto[1], manhattan_distance_gotoint, state)
-			if path == False:
-				state = 1
-			else:
-				for p in old_path:
-					API.setColor(p[0], p[1], 'k')
-				for p in path:
-					API.setColor(p[0], p[1], 'B')
-				for p in path:
-					current_x, current_y, degmode = move_to(current_x, current_y, p[0], p[1], degmode)
-					visited.add((current_x,current_y))
-					printArr = list(map(list, maze_array))
-					for n in path:
-						printArr[n[0]][n[1]] = str(printArr[n[0]][n[1]])+'+'
-					printArr[current_x][current_y] = str(printArr[current_x][current_y]) + '-'
-					for i in range(16):
-						for j in range(16):
-							sys.stderr.write(str(printArr[i][j]) + ' ')
-						sys.stderr.write('\n')
-					sys.stderr.write('\n')
-					sys.stderr.flush()
-				old_path = path
-				state = 0
-		"""	
-		"""
+			if shortcut_path and not not_sc:
+				log('SC : ' + str(shortcut_path))
+				for n in shortcut_path:
+					if visited[n[0]][n[1]]:
+						shortcut_path.remove(n)
+					else:
+						API.setColor(n[0], n[1], 'G')
+				for n in shortcut_path:
+					if not_sc:
+						break
+					maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
+					if is_shortcut(maze_array, sc_start, sc_end, visited, current_x, current_y):
+						if 0 <= n[0] < len(maze_array) and 0 <= n[1] < len(maze_array[1]) and not visited[n[0]][n[1]] and not not_sc:
+							while current_x != n[0] or current_y != n[1]:
+								log('sc: visiting ' + str(n) + ' to explore shortcut between ' + str((sc_start, sc_end)))
+								maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
+								if not is_shortcut(maze_array, sc_start, sc_end, visited, current_x, current_y):
+									log('Not a shortcut')
+									for n in shortcut_path:
+										API.setColor(n[0], n[1], 'k')
+									not_sc = True
+									break
+								path = aStar(maze_array, current_x, current_y, n[0], n[1], manhattan_distance, 0, visited)
+								for p in old_path:
+									API.setColor(p[0], p[1], 'k')
+								for i, p in enumerate(path):
+									API.setColor(p[0], p[1], 'B')
+								current_x, current_y, degmode, total_score = move_to(current_x, current_y, degmode, path, maze_array, visited, total_score)
+								old_path = path
+								visited[current_x][current_y] = True
+								if 7 <= current_x <= 8 and 7 <= current_y <= 8: 
+									if prevstate == 0:
+										prevstate = 1
+										log('Changing prevstate to 1: goal to start')
+										FINISH_X = current_x
+										FINISH_Y = current_y
+								elif any(visited[7:9][7:9]) and prevstate == 0:
+									prevstate = 1
+									log('Changing prevstate to 1: goal to start')
+					else:
+						log('Not a shortcut')
+						for n in shortcut_path:
+							API.setColor(n[0], n[1], 'k')
+						not_sc = True
+						break
+
+			elif (current_x == sc_end[0] and current_y == sc_end[1] and not not_sc) or not_sc or not(shortcut_path):
+				state = prevstate
+				log('Changing state to ' + str(prevstate))
+
+		""" uncomment to print array in log
 		printArr = maze_array
 		for p in path:
 			printArr[p[0]][p[1]] = 2
