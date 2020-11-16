@@ -3,7 +3,6 @@ import sys
 import heapq
 from collections import deque
 from math import sqrt
-from time import sleep
 
 def log(s):
 	sys.stderr.write('{}\n'.format(s))
@@ -504,6 +503,10 @@ def main():
 					API.setText(n[0], n[1], best_score_path[i])
 					API.setColor(n[0],n[1],'B')
 				if not got_best_score:
+					num_visited = 0
+					for c in [row.count(True) for row in visited]:
+						num_visited += c
+					log('Exploration efficiency: ' + str(len(path)) + ' needed, ' + str(num_visited) + ' visited.  Efficiency: ' + str(100*len(path)/num_visited) + '%')
 					got_best_score = True
 					best_run_score = best_score
 			if path:
