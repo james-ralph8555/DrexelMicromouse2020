@@ -437,10 +437,6 @@ def main():
 			else:
 				log('Error: No path')
 
-			elif (current_x == sc_end[0] and current_y == sc_end[1] and not not_sc) or not_sc or not(shortcut_path):
-				state = prevstate
-				log('Changing state to ' + str(prevstate))
-
 
 if __name__ == '__main__':
 	main()
