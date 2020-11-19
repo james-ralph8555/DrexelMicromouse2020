@@ -15,18 +15,19 @@ def log(s):
     sys.stderr.write('{}\n'.format(s))
     sys.stderr.flush()
 
-'''
+
 def manhattan_distance_explore(a, b, visited): #allows for path with visited nodes if neccessary, but strongly prefers unvisited nodes
     if visited[b[0]][b[1]]:
         return (abs(a[0]-b[0]) + abs(a[1] - b[1]))**2
     else:
         return abs(a[0]-b[0]) + abs(a[1] - b[1])
-'''
-def manhattan_distance_explore(a, b, visited): #allows for path with visited nodes if neccessary, but strongly prefers unvisited nodes
+
+def euclidian_distance_explore(a, b, visited): #allows for path with visited nodes if neccessary, but strongly prefers unvisited nodes
     if visited[b[0]][b[1]]:
         return (b[0]-a[0])**2 + (b[1]-a[1])**2
     else:
         return sqrt((b[0]-a[0])**2 + (b[1]-a[1])**2)
+
 def aStar(maze_array, current_x, current_y, goal_x, goal_y, h_func, visited): #modified from code by Christian Careaga (MIT license) modifications: accessibility checking/removed numpy dependency/adapted for square grid/added support for any heuristic
     for i in range(16):
         for j in range(16):
@@ -74,7 +75,7 @@ def aStar(maze_array, current_x, current_y, goal_x, goal_y, h_func, visited): #m
                 came_from[neighbor] = current
                 gscore[neighbor] = tentative_g_score
                 fscore[neighbor] = tentative_g_score + h_func(neighbor, goal, visited)
-                API.setText(neighbor[0],neighbor[1],str(fscore[neighbor]))
+                API.setText(neighbor[0],neighbor[1],str(round(fscore[neighbor],2)))
                 heapq.heappush(oheap, (fscore[neighbor], neighbor))
     return False
 
@@ -215,20 +216,16 @@ def BFS(maze_array, start, goal, visited):
     return best_path, best_score_path, best_score
 
 def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
-    log('x ' + str(current_x) + ' y ' + str(current_y))
-    log(degmode)
-    log(path)
     dist = 0
     if path[0][0] == current_x and path[0][1] == current_y + 1:
         degmode, score = set_degmode(Degmode.UP, degmode, score)
         for i, n in enumerate(path):
             if n[0] == current_x and n[1] == current_y + 1 + i and visited[n[0]][n[1]] and not bool(4 & maze_array[n[0]][n[1]]):
                 dist += 1
-                log(str(n[0]) + ' ' + str(n[1]) + ' ' + str(i) + ' dist: ' + str(dist) + ' visited ' + str(visited[n[0]][n[1]]))
             elif i == 0 and not bool(4 & maze_array[n[0]][n[1]]):
-            dist = 1
-            if not visited[n[0]][n[1]]:
-                break
+                dist = 1
+                if not visited[n[0]][n[1]]:
+                    break
             else:
                 break
         if not API.wallFront():
@@ -269,10 +266,8 @@ def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
     if path[0][0] == current_x and path[0][1] == current_y - 1:
         degmode, score = set_degmode(Degmode.DOWN, degmode, score)
         for i, n in enumerate(path):
-            log('prebool ' + str(n[0]) + ' ' + str(n[1]) + ' ' + str(i) + ' dist: ' + str(dist) + ' visited ' + str(visited[n[0]][n[1]]))
             if n[0] == current_x and n[1] == current_y - 1 - i and visited[n[0]][n[1]] and not bool(1 & maze_array[n[0]][n[1]]):
                 dist += 1
-                log(str(n[0]) + ' ' + str(n[1]) + ' ' + str(i) + ' dist: ' + str(dist) + ' visited ' + str(visited[n[0]][n[1]]))
             elif i == 0 and not bool(1 & maze_array[n[0]][n[1]]):
             	dist = 1
             	if not visited[n[0]][n[1]]:
@@ -408,10 +403,11 @@ def main():
     total_score = 0
     best_run_score = 0
     final_score = 0
+    encountered_wall = False
     while True:
+        log('State: ' + str(state))
         if total_score > 2000:
             exit()
-        log('State: ' + str(state))
         if 7 <= current_x <= 8 and 7 <= current_y <= 8:
             if state == State.start_to_goal:
                 state = State.goal_to_start
@@ -440,7 +436,13 @@ def main():
         while (current_x != goto_x or current_y != goto_y):
             if state is State.start_to_goal or state is State.goal_to_start:
                 maze_array, intersections = mapping(maze_array, current_x, current_y, degmode, intersections)
-                path = aStar(maze_array, current_x, current_y, goto_x, goto_y, manhattan_distance_explore, visited)
+                if encountered_wall == False:
+                    if not all([all([((cell == 0) != (cell == 16)) for cell in row[1:-1]]) for row in maze_array[1:-1]]): #checks if there are walls in array; != is xor for two booleans
+                        encountered_wall = True
+                if encountered_wall:
+                    path = aStar(maze_array, current_x, current_y, goto_x, goto_y, euclidian_distance_explore, visited)
+                else:
+                    path = aStar(maze_array, current_x, current_y, goto_x, goto_y, manhattan_distance_explore, visited)
             elif state is State.final_run:
                 path, best_score_path, best_score = BFS(maze_array, (current_x, current_y), (FINISH_X, FINISH_Y), viable)
                 for i,n in enumerate(path[1:len(path)]):
