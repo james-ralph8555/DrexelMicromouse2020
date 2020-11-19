@@ -2,9 +2,10 @@ import API
 import sys
 import heapq
 from collections import deque
-from enum import Enum
+from enum import Enum, IntEnum
+from math import sqrt
 
-class Degmode(Enum):
+class Degmode(IntEnum):
     UP = 0
     RIGHT = 1
     DOWN = 2
@@ -14,12 +15,18 @@ def log(s):
     sys.stderr.write('{}\n'.format(s))
     sys.stderr.flush()
 
+'''
 def manhattan_distance_explore(a, b, visited): #allows for path with visited nodes if neccessary, but strongly prefers unvisited nodes
     if visited[b[0]][b[1]]:
         return (abs(a[0]-b[0]) + abs(a[1] - b[1]))**2
     else:
         return abs(a[0]-b[0]) + abs(a[1] - b[1])
-
+'''
+def manhattan_distance_explore(a, b, visited): #allows for path with visited nodes if neccessary, but strongly prefers unvisited nodes
+    if visited[b[0]][b[1]]:
+        return (b[0]-a[0])**2 + (b[1]-a[1])**2
+    else:
+        return sqrt((b[0]-a[0])**2 + (b[1]-a[1])**2)
 def aStar(maze_array, current_x, current_y, goal_x, goal_y, h_func, visited): #modified from code by Christian Careaga (MIT license) modifications: accessibility checking/removed numpy dependency/adapted for square grid/added support for any heuristic
     for i in range(16):
         for j in range(16):
@@ -85,64 +92,64 @@ def mapping(maze_array, x, y, degmode, intersections): #see page 9 of the powerp
     L = API.wallLeft()
     if F:
         if degmode is Degmode.UP:
-            if y != len(maze_array[0]):
+            if y < len(maze_array[0]) - 1:
                 maze_array[x][y+1] = concat_bin(maze_array[x][y+1], 4)
             API.setWall(x,y,'n')
             maze_array[x][y] = concat_bin(maze_array[x][y], 1)
         elif degmode is Degmode.RIGHT:
-            if x != len(maze_array):
+            if x < len(maze_array) - 1:
                 maze_array[x+1][y] = concat_bin(maze_array[x+1][y], 8)
             API.setWall(x,y,'e')
             maze_array[x][y] = concat_bin(maze_array[x][y], 2)
         elif degmode is Degmode.DOWN:
-            if y != 0:
+            if y > 0:
                 maze_array[x][y-1] = concat_bin(maze_array[x][y-1], 1)
             API.setWall(x,y,'s')
             maze_array[x][y] = concat_bin(maze_array[x][y], 4)
         elif degmode is Degmode.LEFT:
-            if x != 0:
+            if x > 0:
                 maze_array[x-1][y] = concat_bin(maze_array[x-1][y], 2)
             API.setWall(x,y,'w')
             maze_array[x][y] = concat_bin(maze_array[x][y], 8)
     if R:
         if degmode is Degmode.UP:
-            if x != len(maze_array):
+            if x < len(maze_array) - 1:
                 maze_array[x+1][y] = concat_bin(maze_array[x+1][y], 8)
             API.setWall(x,y,'e')
             maze_array[x][y] = concat_bin(maze_array[x][y], 2)
         elif degmode is Degmode.RIGHT:
-            if y != 0:
+            if y > 0:
                 maze_array[x][y-1] = concat_bin(maze_array[x][y-1], 1)
             API.setWall(x,y,'s')
             maze_array[x][y] = concat_bin(maze_array[x][y], 4)
         elif degmode is Degmode.DOWN:
-            if x != 0:
+            if x > 0:
                 maze_array[x-1][y] = concat_bin(maze_array[x-1][y], 2)
             API.setWall(x,y,'w')
             maze_array[x][y] = concat_bin(maze_array[x][y], 8)
         elif degmode is Degmode.LEFT:
-            if y != len(maze_array[0]):
+            if y < len(maze_array[0]) - 1:
                 maze_array[x][y+1] = concat_bin(maze_array[x][y+1], 4)
             API.setWall(x,y,'n')
             maze_array[x][y] = concat_bin(maze_array[x][y], 1)
     if L:
         if degmode is Degmode.UP:
-            if x != 0:
+            if x > 0:
                 maze_array[x-1][y] = concat_bin(maze_array[x-1][y], 2)
             API.setWall(x,y,'w')
             maze_array[x][y] = concat_bin(maze_array[x][y], 8)
         elif degmode is Degmode.RIGHT:
-            if y != len(maze_array[0]):
+            if y < len(maze_array[0]) - 1:
                 maze_array[x][y+1] = concat_bin(maze_array[x][y+1], 4)
             API.setWall(x,y,'n')
             maze_array[x][y] = concat_bin(maze_array[x][y], 1)
         elif degmode is Degmode.DOWN:
-            if x != len(maze_array):
+            if x < len(maze_array) - 1:
                 maze_array[x+1][y] = concat_bin(maze_array[x+1][y], 8)
             API.setWall(x,y,'e')
             maze_array[x][y] = concat_bin(maze_array[x][y], 2)
         elif degmode is Degmode.LEFT:
-            if y != 0:
+            if y > 0:
                 maze_array[x][y-1] = concat_bin(maze_array[x][y-1], 1)
             API.setWall(x,y,'s')
             maze_array[x][y] = concat_bin(maze_array[x][y], 4)
@@ -208,12 +215,20 @@ def BFS(maze_array, start, goal, visited):
     return best_path, best_score_path, best_score
 
 def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
-    dist = 1
+    log('x ' + str(current_x) + ' y ' + str(current_y))
+    log(degmode)
+    log(path)
+    dist = 0
     if path[0][0] == current_x and path[0][1] == current_y + 1:
         degmode, score = set_degmode(Degmode.UP, degmode, score)
-        for i, n in enumerate(path[1:len(path)]):
-            if n[0] == current_x and n[1] == current_y + 2 + i and visited[n[0]][n[1]] and not bool(4 & maze_array[n[0]][n[1]]):
+        for i, n in enumerate(path):
+            if n[0] == current_x and n[1] == current_y + 1 + i and visited[n[0]][n[1]] and not bool(4 & maze_array[n[0]][n[1]]):
                 dist += 1
+                log(str(n[0]) + ' ' + str(n[1]) + ' ' + str(i) + ' dist: ' + str(dist) + ' visited ' + str(visited[n[0]][n[1]]))
+            elif i == 0 and not bool(4 & maze_array[n[0]][n[1]]):
+            dist = 1
+            if not visited[n[0]][n[1]]:
+                break
             else:
                 break
         if not API.wallFront():
@@ -225,14 +240,18 @@ def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
                 API.moveForward(dist)
             except API.MouseCrashedError as e:
                 log(e)
-                API.wasReset()
+                API.ackReset()
                 return 0, 0, 0, score+15
             return current_x, current_y + dist, degmode, score
     if path[0][0] == current_x + 1 and path[0][1] == current_y:
         degmode, score = set_degmode(Degmode.RIGHT, degmode, score)
-        for i, n in enumerate(path[1:len(path)]):
-            if n[0] == current_x + 2 + i and n[1] == current_y and visited[n[0]][n[1]] and not bool(8 & maze_array[n[0]][n[1]]):
+        for i, n in enumerate(path):
+            if n[0] == current_x + 1 + i and n[1] == current_y and visited[n[0]][n[1]] and not bool(8 & maze_array[n[0]][n[1]]):
                 dist += 1
+            elif i == 0 and not bool(8 & maze_array[n[0]][n[1]]):
+            	dist = 1
+            	if not visited[n[0]][n[1]]:
+                    break
             else:
                 break
         if not API.wallFront():
@@ -244,14 +263,20 @@ def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
                 API.moveForward(dist)
             except API.MouseCrashedError as e:
                 log(e)
-                API.wasReset()
+                API.ackReset()
                 return 0, 0, 0, score+15
             return current_x + dist, current_y, degmode, score
     if path[0][0] == current_x and path[0][1] == current_y - 1:
         degmode, score = set_degmode(Degmode.DOWN, degmode, score)
-        for i, n in enumerate(path[1:len(path)]):
-            if n[0] == current_x and n[1] == current_y - 2 - i and visited[n[0]][n[1]] and not bool(1 & maze_array[n[0]][n[1]]):
+        for i, n in enumerate(path):
+            log('prebool ' + str(n[0]) + ' ' + str(n[1]) + ' ' + str(i) + ' dist: ' + str(dist) + ' visited ' + str(visited[n[0]][n[1]]))
+            if n[0] == current_x and n[1] == current_y - 1 - i and visited[n[0]][n[1]] and not bool(1 & maze_array[n[0]][n[1]]):
                 dist += 1
+                log(str(n[0]) + ' ' + str(n[1]) + ' ' + str(i) + ' dist: ' + str(dist) + ' visited ' + str(visited[n[0]][n[1]]))
+            elif i == 0 and not bool(1 & maze_array[n[0]][n[1]]):
+            	dist = 1
+            	if not visited[n[0]][n[1]]:
+                    break
             else:
                 break
         if not API.wallFront():
@@ -260,17 +285,22 @@ def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
                     score += dist
                 else:
                     score += 2 + (dist-2)/2
+               
                 API.moveForward(dist)
             except API.MouseCrashedError as e:
                 log(e)
-                API.wasReset()
+                API.ackReset()
                 return 0, 0, 0, score+15
             return current_x, current_y - dist, degmode, score
     if path[0][0] == current_x - 1 and path[0][1] == current_y:
         degmode, score = set_degmode(Degmode.LEFT, degmode, score)
-        for i, n in enumerate(path[1:len(path)]):
-            if n[0] == current_x - 2 - i and n[1] == current_y and visited[n[0]][n[1]] and not bool(2 & maze_array[n[0]][n[1]]):
+        for i, n in enumerate(path):
+            if n[0] == current_x - 1 - i and n[1] == current_y and visited[n[0]][n[1]] and not bool(2 & maze_array[n[0]][n[1]]):
                 dist += 1
+            elif i == 0 and not bool(2 & maze_array[n[0]][n[1]]):
+               dist = 1
+               if not visited[n[0]][n[1]]:
+                    break
             else:
                 break
         if not API.wallFront():
@@ -282,7 +312,7 @@ def move_to(current_x, current_y, degmode, path, maze_array, visited, score):
                 API.moveForward(dist)
             except API.MouseCrashedError as e:
                 log(e)
-                API.wasReset()
+                API.ackReset()
                 return 0, 0, 0, score+15
             return current_x - dist, current_y, degmode, score
 
@@ -370,7 +400,7 @@ def main():
     current_x = START_X
     current_y = START_Y
     old_path = []
-    degmode = Degmode.up
+    degmode = Degmode.UP
     State = Enum('State', ['start_to_goal', 'goal_to_start', 'final_run'])
     state = State.start_to_goal
     visited[START_X][START_Y] = True
@@ -379,6 +409,8 @@ def main():
     best_run_score = 0
     final_score = 0
     while True:
+        if total_score > 2000:
+            exit()
         log('State: ' + str(state))
         if 7 <= current_x <= 8 and 7 <= current_y <= 8:
             if state == State.start_to_goal:
